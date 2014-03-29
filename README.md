@@ -35,7 +35,7 @@ Therefore the following checks are performed:
 
 - EdgesNumber >= 0
 - VerticesNumber >= 0
-- VerticesNumber <= EdgesNumber<sup>2</sup>
+- EdgesNumber <= VerticesNumber<sup>2</sup>
 
 Debug
 --------------
