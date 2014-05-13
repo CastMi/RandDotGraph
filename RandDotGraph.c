@@ -2,7 +2,7 @@
  * This file is part of RandDotGraph.
  * 
  * RandDotGraph, to generate random dot graphs easily.
- * Copyright (C) 2013-2014 Michele Castellana <blacklion727[at]gmail[dot]com>
+ * Copyright (C) 2013-2014 Michele Castellana <blacklion727@gmail.com>
  * 
  * RandDotGraph is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
