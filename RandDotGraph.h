@@ -86,10 +86,18 @@ bool writeDotFile(bool *const restrict *restrict arg, int n,
  * @see <a href="http://linux.die.net/man/3/strerror_r">strerror_r</a> for
  *      further possible errors.
  * @warning It assumes that errno had been set to 0!
+ * @warning From string.h:
+ *          Reentrant version of `strerror'.
+ *          There are 2 flavors of `strerror_r', GNU which returns the string
+ *          and may or may not use the supplied temporary buffer and POSIX one
+ *          which fills the string into the buffer.
+ *          To use the POSIX version, -D_XOPEN_SOURCE=600 or -D_POSIX_C_SOURCE=200112L
+ *          without -D_GNU_SOURCE is needed, otherwise the GNU version is
+ *          preferred.
  * @return True if errno is different from 0.
  *         False otherwise.
  */
-bool checkErrors();
+bool checkErrors(void);
 
 /**
  * @brief It allocates an adjacency matrix, fill it in and call the

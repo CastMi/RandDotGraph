@@ -96,9 +96,9 @@ static bool writeFileNewLine(const char *restrict const arg,
         bool returnValue;
         char *restrict tmp;
         // add 2 more spaces for \n and the null terminator
-        const size_t size = sizeof(char) * (strlen(arg) + 2);
+        const size_t size = strlen(arg) + 2;
         errno = 0;
-        tmp = malloc(size);
+        tmp = (char *)malloc(size * sizeof(*tmp));
 #ifdef DEBUG
         assert(tmp);
 #endif
@@ -132,9 +132,9 @@ static bool writeFileSemicolon(const char *restrict const arg,
         bool returnValue;
         char *restrict tmp;
         // add 2 more spaces for ; and the null terminator
-        const size_t size = sizeof(char) * (strlen(arg) + 2);
+        const size_t size = strlen(arg) + 2;
         errno = 0;
-        tmp = malloc(size);
+        tmp = (char *)malloc(size * sizeof(*tmp));
 #ifdef DEBUG
         assert(tmp);
 #endif
@@ -173,6 +173,12 @@ static FILE * openFile(const char *restrict const fileName) {
 
 bool writeDotFile(bool *const restrict *const restrict arg, const int n,
                   const char *restrict const fileName, const graph_prop gp) {
+        int row, col;
+        FILE *fp;
+        char *restrict toWrite;
+        size_t size;
+        const char *restrict typeOfArc;
+
 #ifdef DEBUG
         assert(arg && fileName && n >= 0);
 #endif
@@ -180,11 +186,6 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
                 errno = EINVAL;
                 return false;
         }
-        int row, col;
-        FILE *fp;
-        char *restrict toWrite;
-        size_t size;
-        char *restrict typeOfArc;
 
         clean(fileName);
         errno = 0;
@@ -192,8 +193,8 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
         if(checkErrors())
                 return false;
         writeFileNewLine("digraph G {", fp);
-        size = sizeof(char) * ( 2 * numDigit(n) + 3);
-        toWrite = malloc(size);
+        size = 2 * numDigit(n) + 3;
+        toWrite = (char *) malloc(size * sizeof(*toWrite));
 #ifdef DEBUG
         assert(toWrite);
 #endif
@@ -231,12 +232,12 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
         return true;
 }
 
-bool checkErrors() {
+bool checkErrors(void) {
         if(errno != 0) {
                 // used to restore the precall errno number
                 const int oldErrno = errno;
-                size_t size = sizeof(char) * ERRORMESSAGEBUFFER;
-                char *buffer = malloc(size);
+                size_t size = ERRORMESSAGEBUFFER;
+                char *buffer = (char *) malloc(size * sizeof(*buffer));
 #ifdef DEBUG
                 assert(buffer);
 #endif
@@ -244,6 +245,17 @@ bool checkErrors() {
                         fprintf(stderr, "Something wrong happened but there is\
 not enough memory to store the error message");
                 } else {
+                	/*
+                	 * From string.h:
+                	 * Reentrant version of `strerror'.
+                         * There are 2 flavors of `strerror_r', GNU which
+                         * returns the string and may or may not use the
+                         * supplied temporary buffer and POSIX one which fills
+                         * the string into the buffer. To use the POSIX
+                         * version, -D_XOPEN_SOURCE=600 or
+                         * -D_POSIX_C_SOURCE=200112L without -D_GNU_SOURCE is
+                         * needed, otherwise the GNU version is preferred.
+                         */
                         const int success = strerror_r(errno, buffer, size);
                         if(success != 0) {
                                 fprintf(stderr, "Something wrong happened but \
@@ -263,20 +275,25 @@ a larger buffer for the error message is needed");
  * @brief It initializes the random number generator reading from urandom.
  * @return Void.
  */
-static void randInitializer() {
+static void randInitializer(void) {
         FILE *f;
+        size_t bytes_read = 0;
         f = fopen("/dev/urandom", "r");
         if(f) {
                 int randValue;
-                fread(&randValue, sizeof(randValue), 1, f);
+                bytes_read = fread(&randValue, sizeof(randValue), 1, f);
                 fclose(f);
-                srand(randValue);
+                if(bytes_read)
+                	srand(randValue);
+                else
+                        srand(time(NULL));
         } else
-                // One simpler alternative
                 srand(time(NULL));
 }
 
 bool makeGraph(const int vertices, int edges, const graph_prop gp) {
+        int row, col;
+        
         // check for graph validity
 #ifdef DEBUG
         assert(vertices >= 0 && edges >= 0);
@@ -308,10 +325,9 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
                         return false;
         }
         // from now on, inputs are good
-        int row, col;
         errno = 0;
         // adjacency matrix
-        bool **adj = calloc(vertices, sizeof(*adj));
+        bool **adj = (bool **) calloc(vertices, sizeof(*adj));
 #ifdef DEBUG
         assert((vertices == 0 && !adj) || (vertices != 0 && adj));
 #endif
@@ -319,7 +335,7 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
                 return false;
 
         for(row = 0; row < vertices; row++) {
-                adj[row] = calloc(vertices, sizeof(*adj[row]));
+                adj[row] = (bool *) calloc(vertices, sizeof(*adj[row]));
 #ifdef DEBUG
                 assert(adj[row]);
 #endif
@@ -363,9 +379,10 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
  * @return An integer i in the range 0<=i<=INT_MAX.
  */
 static int filterInput(const char *restrict const toCheck) {
+        long int temp;
         if(!toCheck)
                 return 0;
-        const long int temp = strtol(toCheck, (char **)NULL, 10);
+        temp = strtol(toCheck, (char **)NULL, 10);
         if(temp > INT_MAX)
                 return INT_MAX;
         else if(temp < 0)
@@ -390,15 +407,6 @@ int main(int argc, char **argv) {
         int edges = 0;
         int c;
         graph_prop property = NOCONSTRAINT;
-
-#ifdef DEBUG
-        assert(argc >= 3);
-#endif
-        if(argc < 3) {
-                fprintf(stderr, "Missing parameters\n");
-                exit(EXIT_FAILURE);
-        }
-
         static struct option long_options[] = {
                 {"type",          required_argument, NULL,  't' },
                 {"noselfloop",    no_argument,       NULL,  's' },
@@ -406,6 +414,14 @@ int main(int argc, char **argv) {
                 {"edges",         required_argument, NULL,  'e' },
                 {0,               0,                 NULL,  0   }
         };
+        
+#ifdef DEBUG
+        assert(argc >= 3);
+#endif
+        if(argc < 3) {
+                fprintf(stderr, "Missing parameters\n");
+                exit(EXIT_FAILURE);
+        }
 
         while((c = getopt_long(argc, argv, "t:sv:e:", long_options,
                                 NULL))
@@ -450,8 +466,8 @@ character '\\x%x'\n", optopt);
                                 exit(EXIT_FAILURE);
                 }
 
-        // all the checks before starting the computation
-        if(vertices < 0 || edges < 0 || edges > pow(vertices, 2)) {
+        // trivial checks before starting the computation
+        if(vertices < 0 || edges < 0) {
                 fprintf(stderr, "Wrong parameters\n");
                 exit(EXIT_FAILURE);
         }
@@ -466,6 +482,20 @@ character '\\x%x'\n", optopt);
                      edges > vertices * (vertices - 1) / 2) ||
                     (!(property & NOSELFLOOP) &&
                       edges > vertices * (vertices + 1) / 2))) {
+                        fprintf(stderr, "Wrong parameters\n");
+                        exit(EXIT_FAILURE);
+        }
+        /*
+         * if DIRECTED and self loops are not allowed, then
+         * the maximum number of edges is vertices*(vertices-1)
+         * if DIRECTED and self loops are allowed, then
+         * the maximum number of edges is vertices^2
+         */
+        if(!(property & UNDIRECTED) &&
+                   ((((property & NOSELFLOOP) &&
+                     edges > vertices * (vertices - 1)) ||
+                    (!(property & NOSELFLOOP) &&
+                      edges > pow(vertices, 2))))) {
                         fprintf(stderr, "Wrong parameters\n");
                         exit(EXIT_FAILURE);
         }
