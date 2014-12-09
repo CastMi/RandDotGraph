@@ -10,7 +10,8 @@ Brief introduction
 The goal of this program is not only to give the possibility to create a graph
 easily, but also to release highly reusable code and therefore to keep an eye on
 security, ease of debug and ease of use.
-I am working on this during my spare time. If you find this code useful or if
+I am working on this during my spare time.
+If you find this code useful or if
 you want to give me any suggestion or whatever, feel free to contact me: It
 will encourage me. Please, let me know when you find any problems.
 
@@ -18,6 +19,7 @@ will encourage me. Please, let me know when you find any problems.
 Features
 ----------------------
 
+The code is c99 compliant.
 Support for:
 
         Directed graph
@@ -27,7 +29,7 @@ Support for:
 Command Line Arguments
 --------------
 
-Example:  ./RandDotGraph -v VerticesNumber [-t Type] [-e EdgesNumber]
+Example:  ./RandDotGraph -v VerticesNumber [-t Type] [-e EdgesNumber] [-s]
 
 VerticesNumber
         (required) Specifies the number of vertices for the graph that we are
@@ -42,10 +44,16 @@ EdgesNumber
                    to create.
                    If EdgesNumber is missed, 0 is used.
 
+-s
+        (optional) The graph that we are going to create will be without
+                   selfloop.
+
+The order of the command line arguments is not important.
+
 Output
 --------------
 
-The output will be in the file named RandomGraph.txt.
+The output will be in the file named "RandomGraph.txt".
 
 Argument Checking
 --------------
@@ -58,11 +66,22 @@ Therefore the following checks are performed:
 - VerticesNumber >= 0
 - Check whether the parameters are correct with respect to the type of the graph
 
-Debug
+Debug & Testing
 --------------
 
 If you want to edit/expand/improve this code, there are already some useful
 assert to help in the debugging phase.
-This is the gcc command line argument to active them:
+This is the command to active them:
 
-        gcc RandDotGraph.c -DDEBUG=1
+        make debug
+
+The output filename is "debug.out".
+
+Release
+--------------
+
+This is the command to simply use RandDotGraph:
+
+        make release
+
+The output filename is "release.out".
