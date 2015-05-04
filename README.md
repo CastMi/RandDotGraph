@@ -8,12 +8,12 @@ Brief introduction
 --------------
 
 The goal of this program is not only to give the possibility to create a graph
-easily, but also to release highly reusable code and therefore to keep an eye on
-security, ease of debug and ease of use.
+easily, but also to release highly reusable code and therefore to keep an eye
+on security, ease of debug, ease of use and portability.
 I am working on this during my spare time.
-If you find this code useful or if
-you want to give me any suggestion or whatever, feel free to contact me: It
-will encourage me. Please, let me know when you find any problems.
+If you find this code useful or if you want to give me any suggestion or
+whatever, feel free to contact me: It will encourage me.
+Please, let me know when you find any problems.
 
 ----------------------
 Features
@@ -53,7 +53,7 @@ The order of the command line arguments is not important.
 Output
 --------------
 
-The output will be in the file named "RandomGraph.txt".
+The output will be in the file named "RandomGraph.dot".
 
 Argument Checking
 --------------

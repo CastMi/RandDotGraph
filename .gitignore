@@ -4,6 +4,9 @@
 *.obj
 *.elf
 
+# vim session files
+*.vim
+
 # Assembly files
 *.s
 

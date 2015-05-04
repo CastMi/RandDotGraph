@@ -18,13 +18,12 @@
  * along with RandDotGraph.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
- 
+
 /**
  * @file RandDotGraph.h
  * @brief Generate random directed dot graphs easily.
  * 
  * @author Michele Castellana
- * @bug No known bugs.
  */
 
 #ifndef RANDDOTGRAPH_H_
@@ -40,22 +39,22 @@ typedef unsigned short graph_prop;
 #include <stdbool.h>
 
 /**
- * @brief Return a number i in the range min<=i<max.
+ * @brief Returns a number i in the range min <= i < max.
  * @param[in] min The min of the range.
  * @param[in] max The max of the range.
- * @return A number min<=i<max.
+ * @return A number i such that min <= i < max.
  */
 double randRange(double min, double max);
 
 /**
- * @brief Count the number of digit of an integer.
+ * @brief Counts the number of digit of an integer.
  * @param[in] num The integer.
  * @return The number of digit.
  */
 int numDigit(int num);
 
 /**
- * @brief Use the adjacency matrix to write the graph in dot format.
+ * @brief Uses the adjacency matrix to write the graph in dot format.
  * 
  * errno is set to EINVAL if n < 0.
  * errno is set to EINVAL if arg or fileName are NULL.
@@ -71,7 +70,7 @@ int numDigit(int num);
  *         True otherwise.
  */
 bool writeDotFile(bool *const restrict *restrict arg, int n,
-                  const char *restrict fileName, graph_prop gp);
+      const char *restrict fileName, graph_prop gp);
 
 /**
  * @brief Checks if an error occurred.
@@ -100,7 +99,7 @@ bool writeDotFile(bool *const restrict *restrict arg, int n,
 bool checkErrors(void);
 
 /**
- * @brief It allocates an adjacency matrix, fill it in and call the
+ * @brief Allocates an adjacency matrix, fill it in and call the
  *        writeDotFile function.
  *
  * errno is set to EINVAL if vertices or edges are < 0.
