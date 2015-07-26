@@ -13,10 +13,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with RandDotGraph.  If not, see <http://www.gnu.org/licenses/>.
- * 
  */
 
 /**
@@ -41,14 +40,10 @@
 #include <limits.h>
 #include <getopt.h>
 #include <ctype.h>
-#ifdef DEBUG
 #include <assert.h>
-#endif
 
 double randRange(const double min, const double max) {
-#ifdef DEBUG
    assert(min <= max);
-#endif
    if(min > max)
       return randRange(max, min);
    return rand() * (max - min) / RAND_MAX + min;
@@ -71,9 +66,7 @@ int numDigit(const int num) {
  */
 static bool writeFile(const char *restrict const arg,
       FILE * const fileName) {
-#ifdef DEBUG
    assert(arg && fileName);
-#endif
    if(!arg || !fileName)
       return false;
    fwrite(arg, sizeof(char), strlen(arg), fileName);
@@ -89,29 +82,29 @@ static bool writeFile(const char *restrict const arg,
  */
 static bool writeFileNewLine(const char *restrict const arg,
       FILE * const fileName) {
-#ifdef DEBUG
    assert(arg && fileName);
-#endif
+   assert(arg[strlen(arg)] == '\0');
    if(!arg || !fileName)
       return false;
    bool returnValue;
    char *restrict tmp;
-   // add 2 more spaces for \n and the null terminator
-   const size_t size = strlen(arg) + 2;
+   const char * toadd = "\n";
+   // Add 1 more space for the null terminator
+   const size_t size = strlen(arg) + strlen(toadd) + 1;
    errno = 0;
    tmp = (char *)malloc(size * sizeof(*tmp));
-#ifdef DEBUG
    assert(tmp);
-#endif
    if(checkErrors())
       return false;
-   // - sizeof(char) to be sure it won't copy a random char
-   memcpy(tmp, arg, size - sizeof(char));
-   // strncat will automatically append the null terminated
-   strncat(tmp, "\n", 1);
+   // Build the new string
+   memcpy(tmp, arg, strlen(arg) + 1);
+   assert(tmp[strlen(tmp)] == '\0');
+   strncat(tmp, toadd, strlen(toadd) * sizeof(*toadd));
+   assert(tmp[strlen(tmp)] == '\0');
+   assert(tmp[strlen(tmp)-1] == '\n');
 
    returnValue = writeFile(tmp, fileName);
-   // cleanup
+   // Cleanup
    free(tmp);
    return returnValue;
 }
@@ -125,29 +118,29 @@ static bool writeFileNewLine(const char *restrict const arg,
  */
 static bool writeFileSemicolon(const char *restrict const arg,
       FILE * const fileName) {
-#ifdef DEBUG
    assert(arg && fileName);
-#endif
+   assert(arg[strlen(arg)] == '\0');
    if(!arg || !fileName)
       return false;
    bool returnValue;
+   const char * toadd = ";";
    char *restrict tmp;
-   // add 2 more spaces for ; and the null terminator
-   const size_t size = strlen(arg) + 2;
+   // Add 1 more space for the null terminator
+   const size_t size = strlen(arg) + strlen(toadd) + 1;
    errno = 0;
    tmp = (char *)malloc(size * sizeof(*tmp));
-#ifdef DEBUG
    assert(tmp);
-#endif
    if(checkErrors())
       return false;
-   // - sizeof(char) to be sure it won't copy a random char
-   memcpy(tmp, arg, size - sizeof(char));
-   // + 1 to be sure that tmp will be null terminated
-   strncat(tmp, ";", 1);
+   // Build the new string
+   memcpy(tmp, arg, strlen(arg) + 1);
+   assert(tmp[strlen(tmp)] == '\0');
+   strncat(tmp, toadd, strlen(toadd) * sizeof(*toadd));
+   assert(tmp[strlen(tmp)] == '\0');
+   assert(tmp[strlen(tmp)-1] == ';');
 
    returnValue = writeFileNewLine(tmp, fileName);
-   // cleanup
+   // Cleanup
    free(tmp);
    return returnValue;
 }
@@ -185,9 +178,7 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
    size_t size;
    const char *restrict typeOfArc;
 
-#ifdef DEBUG
    assert(arg && fileName && n >= 0);
-#endif
    if(!arg || !fileName || n < 0) {
       errno = EINVAL;
       return false;
@@ -199,15 +190,14 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
    if(checkErrors())
       return false;
    writeFileNewLine("digraph G {", fp);
-   size = 2 * numDigit(n + 1) + 3;
-   toWrite = (char *) malloc(size * sizeof(*toWrite));
-#ifdef DEBUG
-   assert(toWrite);
-#endif
+
    if(gp & UNDIRECTED)
       typeOfArc = "--";
    else
       typeOfArc = "->";
+   size = 2 * numDigit(n + 1) + strlen(typeOfArc) + 2;
+   toWrite = (char *) malloc(size * sizeof(*toWrite));
+   assert(toWrite);
 
    for(row = 0; row < n; row++) {
       snprintf(toWrite, size, "%d", row + 1);
@@ -231,7 +221,7 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
    }
    writeFile("}", fp);
    fclose(fp);
-   // cleanup
+   // Cleanup
    free(toWrite);
    return true;
 }
@@ -242,9 +232,7 @@ bool checkErrors(void) {
       const int oldErrno = errno;
       size_t size = ERRORMESSAGEBUFFER;
       char *buffer = (char *) malloc(size * sizeof(*buffer));
-#ifdef DEBUG
       assert(buffer);
-#endif
       if(!buffer) {
          fprintf(stderr, "Something wrong happened but there is not enough \
                memory to store the error message");
@@ -266,7 +254,7 @@ bool checkErrors(void) {
          fprintf(stderr, "%s\n", buffer);
          free(buffer);
       }
-      // restore the precall errno number
+      // Restore the precall errno number
       errno = oldErrno;
       return true;
    }
@@ -296,10 +284,10 @@ static void randInitializer(void) {
 bool makeGraph(const int vertices, int edges, const graph_prop gp) {
    int row, col;
 
-   // check for graph validity
-#ifdef DEBUG
+   // Check for graph validity
    assert(vertices >= 0 && edges >= 0);
-   // the maximum number of edges is based on the property of the graph
+#ifndef NDEBUG
+   // The maximum number of edges is based on the property of the graph
    if(gp & UNDIRECTED) {
       if(gp & NOSELFLOOP)
          assert(edges <= vertices * (vertices - 1) / 2);
@@ -313,9 +301,9 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
       return false;
    }
    /*
-    * if UNDIRECTED and self loops are not allowed, then the maximum number of
+    * If UNDIRECTED and self loops are not allowed, then the maximum number of
     * edges is vertices*(vertices-1)/2
-    * if UNDIRECTED and self loops are allowed, then the maximum number of
+    * If UNDIRECTED and self loops are allowed, then the maximum number of
     * edges is vertices*(vertices+1)/2
     */
    if((gp & UNDIRECTED) &&
@@ -324,21 +312,17 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
       errno = EINVAL;
       return false;
    }
-   // from now on, inputs are good
+   // From now on, inputs are good
    errno = 0;
-   // adjacency matrix
+   // Adjacency matrix
    bool **adj = (bool **) calloc(vertices, sizeof(*adj));
-#ifdef DEBUG
    assert((vertices == 0 && !adj) || (vertices != 0 && adj));
-#endif
    if(checkErrors())
       return false;
 
    for(row = 0; row < vertices; row++) {
       adj[row] = (bool *) calloc(vertices, sizeof(*adj[row]));
-#ifdef DEBUG
       assert(adj[row]);
-#endif
       if(checkErrors())
          return false;
    }
@@ -348,7 +332,7 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
       row = randRange(0, vertices);
       col = randRange(0, vertices);
       /*
-       * if NOSELFLOOP is set, row != col is mandatory.
+       * If NOSELFLOOP is set, row != col is mandatory.
        * Therefore either NOSELFLOOP is not set or row != col
        */
       if(adj[row][col] == false && (!(gp & NOSELFLOOP) || row != col)) {
@@ -401,9 +385,6 @@ int main(int argc, char **argv) {
       {0,               0,                 NULL,  0   }
    };
 
-#ifdef DEBUG
-   assert(argc >= 3);
-#endif
    if(argc < 3) {
       fprintf(stderr, "Missing parameters\n");
       exit(EXIT_FAILURE);
@@ -427,16 +408,16 @@ int main(int argc, char **argv) {
             property |= NOSELFLOOP;
             break;
          case 'v':
-            // vertices
+            // Vertices
             vertices = filterInput(optarg);
             break;
          case 'e':
-            // edges
+            // Edges
             edges = filterInput(optarg);
             break;
          case '?':
          default :
-            // unknown option
+            // Unknown option
             if (isprint(optopt))
                fprintf(stderr, "Unknown option '-%c'\n", optopt);
             else
@@ -444,15 +425,15 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
       }
 
-   // trivial checks before starting the computation
+   // Trivial checks before starting the computation
    if(vertices < 0 || edges < 0) {
       fprintf(stderr, "Wrong parameters\n");
       exit(EXIT_FAILURE);
    }
    /*
-    * if UNDIRECTED and self loops are not allowed, then
+    * If UNDIRECTED and self loops are not allowed, then
     * the maximum number of edges is vertices*(vertices-1)/2
-    * if UNDIRECTED and self loops are allowed, then
+    * If UNDIRECTED and self loops are allowed, then
     * the maximum number of edges is vertices*(vertices+1)/2
     */
    if((property & UNDIRECTED) &&
@@ -462,9 +443,9 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
    }
    /*
-    * if DIRECTED and self loops are not allowed, then
+    * If DIRECTED and self loops are not allowed, then
     * the maximum number of edges is vertices*(vertices-1)
-    * if DIRECTED and self loops are allowed, then
+    * If DIRECTED and self loops are allowed, then
     * the maximum number of edges is vertices^2
     */
    if(!(property & UNDIRECTED) &&

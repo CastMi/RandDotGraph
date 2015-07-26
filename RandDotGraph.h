@@ -29,9 +29,9 @@
 #ifndef RANDDOTGRAPH_H_
 #define RANDDOTGRAPH_H_
 
-// graph properties
+// Graph properties
 typedef unsigned short graph_prop;
-// flags
+// Flags
 #define NOCONSTRAINT 0x00 // directed, with self loop
 #define UNDIRECTED 0x01
 #define NOSELFLOOP 0x02
