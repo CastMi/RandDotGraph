@@ -30,6 +30,17 @@
 // Error buffer array dimension
 #define ERRORMESSAGEBUFFER 100
 
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+
+#define MASK_ONE   1
+#define MASK_TWO   2
+#define MASK_THREE 4
+#define MASK_FOUR  8
+#define MASK_FIVE  16
+#define MASK_SIX   32
+#define MASK_SEVEN 64
+#define MASK_EIGHT 128
+
 #include "RandDotGraph.h"
 #include <stdio.h>
 #include <string.h>
@@ -64,7 +75,7 @@ int numDigit(const int num) {
  * @return False if something wrong happened.
  *         True otherwise.
  */
-static bool writeFile(const char *restrict const arg,
+static inline bool writeFile(const char *restrict const arg,
       FILE * const fileName) {
    assert(arg && fileName);
    if(!arg || !fileName)
@@ -80,7 +91,7 @@ static bool writeFile(const char *restrict const arg,
  * @return False if something wrong happened.
  *         True otherwise.
  */
-static bool writeFileNewLine(const char *restrict const arg,
+static inline bool writeFileNewLine(const char *restrict const arg,
       FILE * const fileName) {
    assert(arg && fileName);
    assert(arg[strlen(arg)] == '\0');
@@ -170,16 +181,48 @@ static FILE * openFile(const char *restrict const fileName) {
       return NULL;
 }
 
-bool writeDotFile(bool *const restrict *const restrict arg, const int n,
+static inline uint8_t getOffset(uint8_t num) {
+   uint8_t rest = num % 8;
+   uint8_t offset = 8 * rest;
+   /*
+    * The result of these operations
+    * will always be in the range
+    * 0-7
+    */
+   switch(offset / 1000)
+   {
+      case 0:
+         return MASK_ONE;
+      case 1:
+         return MASK_TWO;
+      case 2:
+         return MASK_THREE;
+      case 3:
+         return MASK_FOUR;
+      case 4:
+         return MASK_FIVE;
+      case 5:
+         return MASK_SIX;
+      case 6:
+         return MASK_SEVEN;
+      case 7:
+         return MASK_EIGHT;
+      default:
+         assert(false);
+   }
+   return 0;
+}
+
+bool writeDotFile(uint8_t *const restrict *const restrict arg, const unsigned int n,
       const char *restrict const fileName, const graph_prop gp) {
-   int row, col;
+   unsigned int row, col;
    FILE *fp;
    char *restrict toWrite;
    size_t size;
    const char *restrict typeOfArc;
 
-   assert(arg && fileName && n >= 0);
-   if(!arg || !fileName || n < 0) {
+   assert(arg && fileName);
+   if(!arg || !fileName) {
       errno = EINVAL;
       return false;
    }
@@ -191,20 +234,26 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
       return false;
    writeFileNewLine("digraph G {", fp);
 
+   typeOfArc = (char *) malloc(3 * sizeof(*typeOfArc));
+   assert(typeOfArc);
    if(gp & UNDIRECTED)
       typeOfArc = "--";
    else
       typeOfArc = "->";
-   size = 2 * numDigit(n + 1) + strlen(typeOfArc) + 2;
+   //if(typeOfArc[strlen(typeOfArc)] == '\0')
+   //   assert(false);
+   size = 2 * numDigit(n + 1) + strlen(typeOfArc) + 20;
    toWrite = (char *) malloc(size * sizeof(*toWrite));
    assert(toWrite);
 
-   for(row = 0; row < n; row++) {
+   for(row = 0; LIKELY( row < n ); row++) {
       snprintf(toWrite, size, "%d", row + 1);
       writeFileSemicolon(toWrite, fp);
       // Check the lower triangular matrix
       for(col = 0; col <= row; col++) {
-         if(arg[row][col] == true) {
+         uint8_t offset = getOffset(col);
+         uint8_t elem = col / 8;
+         if((arg[row][elem] & offset) != 0) {
             snprintf(toWrite, size, "%d%s%d", row + 1, typeOfArc, col + 1);
             writeFileSemicolon(toWrite, fp);
          }
@@ -213,7 +262,9 @@ bool writeDotFile(bool *const restrict *const restrict arg, const int n,
       // of the row.
       if(!(gp & UNDIRECTED))
          for(; col < n; col++) {
-            if(arg[row][col] == true) {
+            uint8_t offset = getOffset(col);
+            uint8_t elem = col / 8;
+            if((arg[row][elem] & offset) != 0) {
                snprintf(toWrite, size, "%d%s%d", row + 1, typeOfArc, col + 1);
                writeFileSemicolon(toWrite, fp);
             }
@@ -270,7 +321,7 @@ static void randInitializer(void) {
    size_t bytes_read = 0;
    f = fopen("/dev/urandom", "r");
    if(f) {
-      int randValue;
+      unsigned int randValue;
       bytes_read = fread(&randValue, sizeof(randValue), 1, f);
       fclose(f);
       if(bytes_read)
@@ -281,11 +332,11 @@ static void randInitializer(void) {
       srand(time(NULL));
 }
 
-bool makeGraph(const int vertices, int edges, const graph_prop gp) {
-   int row, col;
+bool makeGraph(const unsigned int vertices, unsigned int edges, const graph_prop gp) {
+   unsigned int row, col;
+   uint8_t **adj;
+   uint8_t offset, elem;
 
-   // Check for graph validity
-   assert(vertices >= 0 && edges >= 0);
 #ifndef NDEBUG
    // The maximum number of edges is based on the property of the graph
    if(gp & UNDIRECTED) {
@@ -296,7 +347,7 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
    } else
       assert(edges <= pow(vertices, 2));
 #endif
-   if(vertices < 0 || edges < 0 || edges > pow(vertices, 2)) {
+   if(edges > pow(vertices, 2)) {
       errno = EINVAL;
       return false;
    }
@@ -315,35 +366,39 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
    // From now on, inputs are good
    errno = 0;
    // Adjacency matrix
-   bool **adj = (bool **) calloc(vertices, sizeof(*adj));
+   adj = (uint8_t **) calloc(vertices, sizeof(*adj));
    assert((vertices == 0 && !adj) || (vertices != 0 && adj));
    if(checkErrors())
       return false;
 
-   for(row = 0; row < vertices; row++) {
-      adj[row] = (bool *) calloc(vertices, sizeof(*adj[row]));
+   for(row = 0; LIKELY( row < vertices ); row++) {
+      // TODO: rounding. We are dividing by 8.
+      adj[row] = (uint8_t *) calloc((vertices / 8) + 1, sizeof(*adj[row]));
       assert(adj[row]);
       if(checkErrors())
          return false;
    }
 
    randInitializer();
-   while(edges > 0) {
+   while(LIKELY( edges > 0 )) {
       row = randRange(0, vertices);
       col = randRange(0, vertices);
+      offset = getOffset(col);
+      elem = col / 8;
       /*
        * If NOSELFLOOP is set, row != col is mandatory.
        * Therefore either NOSELFLOOP is not set or row != col
        */
-      if(adj[row][col] == false && (!(gp & NOSELFLOOP) || row != col)) {
+      if((adj[row][elem] & offset) == 0 &&
+            (!(gp & NOSELFLOOP) || row != col)) {
 #ifdef DEBUG
 #if DEBUG > 2
          fprintf(stderr, "(%d,%d)\n", row, col);
 #endif
 #endif
-         adj[row][col] = true;
+         adj[row][elem] |= offset;
          if(gp & UNDIRECTED)
-            adj[col][row] = true;
+            adj[col][row/8] |= getOffset(row);
          edges--;
       }
    }
@@ -358,23 +413,21 @@ bool makeGraph(const int vertices, int edges, const graph_prop gp) {
 /**
  * @brief Checks the bounds for the user input.
  * @param[in] toCheck The user input.
- * @return An integer i in the range 0<=i<=INT_MAX.
+ * @return An unsigned integer in the range 0<=i<=UINT_MAX.
  */
-static int filterInput(const char *restrict const toCheck) {
-   long int temp;
+static unsigned int filterInput(const char *restrict const toCheck) {
+   unsigned long int temp;
    if(!toCheck)
       return 0;
-   temp = strtol(toCheck, (char **)NULL, 10);
-   if(temp > INT_MAX)
-      return INT_MAX;
-   else if(temp < 0)
-      return 0;
+   temp = strtoul(toCheck, (char **)NULL, 10);
+   if(temp > UINT_MAX)
+      return UINT_MAX;
    return temp;
 }
 
 int main(int argc, char **argv) {
-   int vertices = 0;
-   int edges = 0;
+   unsigned int vertices = 0;
+   unsigned int edges = 0;
    int c;
    graph_prop property = NOCONSTRAINT;
    static struct option long_options[] = {
@@ -425,11 +478,6 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
       }
 
-   // Trivial checks before starting the computation
-   if(vertices < 0 || edges < 0) {
-      fprintf(stderr, "Wrong parameters\n");
-      exit(EXIT_FAILURE);
-   }
    /*
     * If UNDIRECTED and self loops are not allowed, then
     * the maximum number of edges is vertices*(vertices-1)/2

@@ -37,6 +37,7 @@ typedef unsigned short graph_prop;
 #define NOSELFLOOP 0x02
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /**
  * @brief Returns a number i in the range min <= i < max.
@@ -69,7 +70,7 @@ int numDigit(int num);
  * @return False if something bad happened.
  *         True otherwise.
  */
-bool writeDotFile(bool *const restrict *restrict arg, int n,
+bool writeDotFile(uint8_t *const restrict *restrict arg, unsigned int n,
       const char *restrict fileName, graph_prop gp);
 
 /**
@@ -114,6 +115,6 @@ bool checkErrors(void);
  * @return False if something bad happened.
  *         True otherwise.
  */
-bool makeGraph(int vertices, int edges, graph_prop gp);
+bool makeGraph(unsigned int vertices, unsigned int edges, graph_prop gp);
 
 #endif
